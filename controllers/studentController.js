@@ -1,42 +1,72 @@
 import Student from "../models/Student.js";
+import Mark from "../models/Mark.js";
+import Test from "../models/Test.js";
 
 export const addStudent = async (req, res) => {
   try {
-    const { name, standard, subjects, parentPhone } = req.body;
-
-    if (!name || !standard || !subjects) {
-      return res.status(400).json({ message: "Required Field missing" });
-    }
-
-    const student = new Student({
-      name,
-      standard,
-      subjects,
-      parentPhone,
-    });
-
-    await student.save();
+    const student = await Student.create(req.body);
     res.status(201).json(student);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 };
 
-export const getStudentByFilter = async (req, res) => {
-  try {
-    const { standard, subject } = req.query;
+export const getStudents = async (req, res) => {
+  const { standard, subject } = req.query;
 
-    if (!standard || !subject) {
-      return res.status(400).json({ message: "Standard and subject required" });
+  const filter = {};
+  if (standard) filter.standard = standard;
+  if (subject) filter.subjects = subject;
+
+  const students = await Student.find(filter);
+  res.json(students);
+};
+
+export const getStudentProfile = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ message: "Student ID is required" });
     }
 
-    const students = await Student.find({
-      standard,
-      subjects: { $in: [subject] },
-    }).sort({ name: 1 });
+    // 1️⃣ Get student
+    const student = await Student.findById(id);
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
 
-    res.json(students);
+    const tests = await Test.find({standard : student.standard}).sort({testDate : -1})
+
+    // 2️⃣ Get marks history (FIXED SORT)
+    const marks = await Mark.find({ studentId: id })
+
+
+     //merge mark + absent
+     const history = tests.map((test) => {
+      const mark = marks.find(
+        (m) => m.testId.toString() === test._id.toString()
+      );
+
+      return {
+        testDate : test.testDate,
+        subject: test.subject,
+        totalMarks : test.totalMarks,
+        obtainedMarks : mark ? mark.obtainedMarks : null,
+        status : mark ? "Present" : "Absent"
+      }
+     })
+
+    res.json({
+      student,
+      history,
+    });
   } catch (err) {
-    return res.status(400).json({ message: err.message });
+    console.error("Student profile error:", err);
+    res.status(500).json({
+      message: "Error while fetching student data",
+      error: err.message,
+    });
   }
 };
+

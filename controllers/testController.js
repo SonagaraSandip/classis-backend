@@ -2,21 +2,21 @@ import Test from "../models/Test.js";
 
 export const createTest = async (req, res) => {
   try {
-    const { standard, subject, testName, totalMarks, date } = req.body;
+    // console.log("REQ BODY:", req.body); // 🔍 debug once
 
-    if (!standard || !subject || !totalMarks) {
-      return res.status(400).json({ message: "Required fields missing" });
+    const { standard, subject, testDate, totalMarks } = req.body;
+
+    if (!standard || !subject || !testDate || !totalMarks) {
+      return res.status(400).json({ message: "All fields required" });
     }
 
-    const test = new Test({
+    const test = await Test.create({
       standard,
       subject,
-      testName,
-      totalMarks,
-      date
+      testDate,
+      totalMarks
     });
 
-    await test.save();
     res.status(201).json(test);
   } catch (err) {
     res.status(500).json({ message: err.message });
