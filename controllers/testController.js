@@ -14,7 +14,8 @@ export const createTest = async (req, res) => {
       standard,
       subject,
       testDate,
-      totalMarks
+      totalMarks,
+      isGuest: req.user?.role === "guest",
     });
 
     res.status(201).json(test);

@@ -5,17 +5,26 @@ const markSchema = new mongoose.Schema(
     studentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Student",
-      required: true
+      required: true,
     },
     testId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Test",
-      required: true
+      required: true,
     },
     obtainedMarks: {
       type: Number,
-      required: true
-    }
+      default: null,
+    },
+    status: {
+      type: String,
+      enum: ["PRESENT", "ABSENT"],
+      default: "PRESENT",
+    },
+    isGuest: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

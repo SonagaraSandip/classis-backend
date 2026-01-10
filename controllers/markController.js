@@ -3,18 +3,61 @@ import Test from "../models/Test.js";
 import Mark from "../models/Mark.js";
 
 export const saveMarks = async (req, res) => {
-  const { studentId, testId, obtainedMarks } = req.body;
+  const { studentId, testId, obtainedMarks, status } = req.body;
 
-  if (!studentId || !testId || !Number.isFinite(obtainedMarks)) {
+  if (!studentId || !testId) {
     return res.status(400).json({ message: "Invalid data" });
   }
 
-  const exists = await Mark.findOne({ studentId, testId });
-  if (exists) {
-    return res.status(400).json({ message: "Marks already entered" });
+  //check test exists
+  const test = await Test.findById(testId);
+  if (!test) {
+    return res.status(404).json({ message: "Test not found" });
   }
 
-  const mark = await Mark.create({ studentId, testId, obtainedMarks });
+  //❌ same student + sbject + date check
+  const alreadyExists = await Mark.findOne({
+    studentId,
+    testId,
+  });
+
+  if (alreadyExists && alreadyExists.testId) {
+    return res.status(400).json({
+      message: "Marks already entered , please edit",
+      markId: alreadyExists._id,
+    });
+  }
+
+  //absent case
+  if (status === "ABSENT") {
+    const mark = await Mark.create({
+      studentId,
+      testId,
+      status: "ABSENT",
+      obtainedMarks: null,
+      isGuest: req.user.role === "guest",
+    });
+    return res.status(201).json(mark);
+  }
+
+  if (!Number.isFinite(obtainedMarks)) {
+    return res.status(400).json({ message: "Marks required" });
+  }
+
+  //mark > total mark not allowds
+  if (obtainedMarks > test.totalMarks) {
+    return res
+      .status(400)
+      .json({ message: `Marks cannot be greater than ${test.totalMarks}` });
+  }
+
+  const mark = await Mark.create({
+    studentId,
+    testId,
+    obtainedMarks,
+    status: "PRESENT",
+    isGuest: req.user?.role === "guest",
+  });
   res.status(201).json(mark);
 };
 
@@ -28,6 +71,7 @@ export const getPDFDataByDate = async (req, res) => {
     //find all tests on this date
     const tests = await Test.find({
       testDate: new Date(testDate),
+      isGuest: req.user.role === "guest",
     });
 
     if (tests.length === 0) return res.json([]);
@@ -35,12 +79,17 @@ export const getPDFDataByDate = async (req, res) => {
     const testIds = tests.map((t) => t._id);
 
     //Get all marks for these tests
-    const marks = await Mark.find({ testId: { $in: testIds } })
+    const marks = await Mark.find({
+      testId: { $in: testIds },
+      isGuest: req.user.role === "guest",
+    })
       .populate("studentId", "name standard")
       .populate("testId", "subject totalMarks testDate");
 
     //get all students ( for absent logic)
-    const students = await Student.find();
+    const students = await Student.find({
+      isGuest: req.user.role === "guest",
+    });
 
     res.json({ tests, marks, students });
   } catch (err) {
@@ -58,7 +107,7 @@ export const getMarksByDate = async (req, res) => {
       return res.status(400).json({ message: "TestDate is required" });
     }
 
-    const marks = await Mark.find()
+    const marks = await Mark.find({ isGuest: req.user.role === "guest" })
       .populate({
         path: "testId",
         match: { testDate: new Date(testDate) },
@@ -80,21 +129,37 @@ export const getMarksByDate = async (req, res) => {
 export const updateMark = async (req, res) => {
   try {
     const { id } = req.params;
-    const { obtainedMarks } = req.body;
-    
+    const { obtainedMarks, status } = req.body;
 
+    const mark = await Mark.findById(id);
+    if (!mark) {
+      return res.status(404).json({ message: "Mark not found" });
+    }
+    if (req.user.role === "guest" && !mark.isGuest) {
+      return res.status(400).json({ message: "Not Allowed" });
+    }
+
+    //absent case
+    if (status === "ABSENT") {
+      mark.status = "ABSENT";
+      mark.obtainedMarks = null;
+      await mark.save();
+      return res.json(mark);
+    }
     if (!Number.isFinite(obtainedMarks)) {
       return res.status(400).json({ message: "Invalid marks" });
     }
 
-    const mark = await Mark.findByIdAndUpdate(
-      id,
-      { obtainedMarks },
-      { new: true }
-    );
-    if (!mark) {
-      return res.status(404).json({ message: "Mark not found" });
+    const test = await Test.findById(mark.testId);
+    if (obtainedMarks > test.totalMarks) {
+      return res.status(400).json({
+        message: `Marks cannot be greater than ${test.totalMarks}`,
+      });
     }
+
+    mark.status = "PRESENT";
+    mark.obtainedMarks = obtainedMarks;
+    await mark.save();
 
     res.json(mark);
   } catch (err) {
