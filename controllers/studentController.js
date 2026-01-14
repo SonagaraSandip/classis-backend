@@ -15,16 +15,15 @@ export const addStudent = async (req, res) => {
 };
 
 export const getStudents = async (req, res) => {
-  const { standard, subject } = req.query;
+  const { standard } = req.query;
 
-  const filter = {};
-  if (standard) filter.standard = standard;
-  if (subject) filter.subjects = subject;
-
-  const students = await Student.find({
-    ...filter,
+  const filter = {
     isGuest: req.user.role === "guest",
-  });
+  };
+
+  if (standard) filter.standard = standard;
+
+  const students = await Student.find(filter).sort({ name: 1 });
   res.json(students);
 };
 
@@ -42,27 +41,22 @@ export const getStudentProfile = async (req, res) => {
       return res.status(404).json({ message: "Student not found" });
     }
 
-    const tests = await Test.find({ standard: student.standard }).sort({
-      testDate: -1,
-    });
-
     // 2️⃣ Get marks history (FIXED SORT)
-    const marks = await Mark.find({ studentId: id });
+    const marks = await Mark.find({
+      studentId: id,
+      isGuest: req.user.role === "guest",
+    })
+      .populate("testId", "testDate")
+      .sort({ createdAt: -1 });
 
     //merge mark + absent
-    const history = tests.map((test) => {
-      const mark = marks.find(
-        (m) => m.testId.toString() === test._id.toString()
-      );
-
-      return {
-        testDate: test.testDate,
-        subject: test.subject,
-        totalMarks: test.totalMarks,
-        obtainedMarks: mark ? mark.obtainedMarks : null,
-        status: mark ? mark.status : "ABSENT",
-      };
-    });
+    const history = marks.map((m) => ({
+      testDate: m.testId?.testDate,
+      subject: m.subject,
+      totalMarks: m.totalMarks,
+      obtainedMarks: m.obtainedMarks,
+      status: m.status,
+    }));
 
     res.json({
       student,

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="gu">
+  <head>
+    <meta charset="UTF-8" />
+
+    <!-- Gujarati font -->
+
+    <style>
+      @page {
+        margin: 5mm 10mm 25mm 10mm;
+      }
+
+      body {
+        font-family: "Nirmala UI", "Shruti", "Mangal", sans-serif;
+        padding: 20px;
+        /* padding-bottom: 30px; */
+        position: relative;
+      }
+
+      /* ---------- HEADER ---------- */
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        margin-bottom: 10px;
+      }
+
+      .header img {
+        height: 60px;
+      }
+
+      .school-name {
+        font-size: 22px;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 5px;
+        color: #000;
+      }
+
+      .test-date {
+        text-align: center;
+        margin-bottom: 20px;
+        font-size: 16px;
+        color: #000;
+      }
+
+      .absent-row {
+        background-color: #ffe5e5;
+      }
+
+      .absent-text {
+        color: #b00000;
+        font-weight: bold;
+      }
+
+      /* ---------- HEADER ---------- */
+      .report-header {
+        display: grid;
+        grid-template-columns: 80px 1fr auto;
+        align-items: center;
+        gap: 12px;
+        padding-bottom: 10px;
+      }
+
+      .header-left img {
+        height: 70px;
+      }
+
+      .header-center {
+        text-align: left;
+      }
+
+      .school-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: #1e3a8a; /* dark blue */
+      }
+
+      .school-tagline {
+        font-size: 14px;
+        color: #6b7280;
+        margin-top: 4px;
+      }
+
+      .header-right {
+        text-align: right;
+      }
+
+      .report-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #1e3a8a;
+      }
+
+      .report-date {
+        margin-top: 6px;
+        padding: 6px 12px;
+        border: 1px solid #cbd5f5;
+        border-radius: 8px;
+        font-size: 13px;
+        color: #374151;
+      }
+
+      /* Divider line */
+      .header-divider {
+        border: none;
+        border-top: 3px solid #1e3a8a;
+        margin: 10px 0 20px;
+      }
+
+      /* ---------- WATERMARK ---------- */
+      .watermark {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        width: 300px;
+        opacity: 0.08;
+        transform: translate(-50%, -50%);
+        z-index: -1;
+      }
+
+      h2 {
+        margin-top: 30px;
+        /* text-align: center; */
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+
+      th,
+      td {
+        border: 1px solid #000;
+        padding: 6px;
+        font-size: 14px;
+        text-align: center;
+      }
+
+      th {
+        background: #f0f0f0;
+      }
+      /* ---------- PAGE BREAK ---------- */
+      .page-break {
+        page-break-after: always;
+      }
+    </style>
+  </head>
+  <body>
+    <img src="{{WATERMARK_LOGO}}" class="watermark" />
+
+    <!-- HEADER -->
+    <!-- HEADER -->
+    <div class="report-header">
+      <!-- Left: Logo -->
+      <div class="header-left">
+        <img src="{{SCHOOL_LOGO}}" alt="School Logo" />
+      </div>
+
+      <!-- Center: School Name + Tagline -->
+      <div class="header-center">
+        <div class="school-title">જય માતાજી ટ્યુશન ક્લાસીસ</div>
+        <div class="school-tagline">શિક્ષણ એ સફળતાની ચાવી</div>
+      </div>
+
+      <!-- Right: Report Title + Date -->
+      <div class="header-right">
+        <div class="report-title">ટેસ્ટ માર્ક્સ રિપોર્ટ</div>
+        <div class="report-date">તારીખ: {{TEST_DATE}}</div>
+      </div>
+    </div>
+
+    <hr class="header-divider" />
+
+    {{CONTENT}}
+  </body>
+</html>

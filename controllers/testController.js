@@ -4,17 +4,35 @@ export const createTest = async (req, res) => {
   try {
     // console.log("REQ BODY:", req.body); // 🔍 debug once
 
-    const { standard, subject, testDate, totalMarks } = req.body;
+    const { standard, testDate } = req.body;
 
-    if (!standard || !subject || !testDate || !totalMarks) {
+    if (!standard || !testDate) {
       return res.status(400).json({ message: "All fields required" });
+    }
+
+    const start = new Date(testDate);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(testDate);
+    end.setHours(23, 59, 59, 999);
+
+    // prevent duplicate test session for same class + date
+    const existing = await Test.findOne({
+      standard,
+      testDate: {
+        $gte: start,
+        $lte: end,
+      },
+      isGuest: req.user?.role === "guest",
+    });
+
+    if (existing) {
+      return res.status(200).json(existing);
     }
 
     const test = await Test.create({
       standard,
-      subject,
       testDate,
-      totalMarks,
       isGuest: req.user?.role === "guest",
     });
 

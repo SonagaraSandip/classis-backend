@@ -8,10 +8,11 @@ import studentRoutes from "./routes/studentRoutes.js";
 import testRoutes from "./routes/testRoutes.js";
 import markRoutes from "./routes/markRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+import pdfRoutes from "./routes/pdfRoutes.js";
 
 dotenv.config();
 
-const app = express();
+const app = express(); 
 
 // 🔥 MIDDLEWARE (ORDER MATTERS)
 app.use(cors());
@@ -22,12 +23,22 @@ app.use("/api/students", studentRoutes);
 app.use("/api/tests", testRoutes);
 app.use("/api/marks", markRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/pdf", pdfRoutes);
+
+if (
+  process.env.NODE_ENV === "production" &&
+  process.env.MONGO_URL.includes("classis_dev")
+) {
+  throw new Error("❌ Production cannot use DEV database");
+}
+
 
 // DB CONNECT
 mongoose
   .connect(process.env.MONGO_URL)
   .then(() => {
     console.log("✅ MongoDB connected");
+      console.log("📦 Database:", mongoose.connection.name);
     //start cron after db connect
     startGuestCleanupCron();
   })

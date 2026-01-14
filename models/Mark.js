@@ -12,6 +12,14 @@ const markSchema = new mongoose.Schema(
       ref: "Test",
       required: true,
     },
+    subject: {
+      type: String,
+      required: true,
+    },
+    totalMarks: {
+      type: Number,
+      required: true,
+    },
     obtainedMarks: {
       type: Number,
       default: null,
@@ -28,5 +36,7 @@ const markSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+markSchema.index({ studentId: 1, testId: 1 }, { unique: true });
 
 export default mongoose.model("Mark", markSchema);

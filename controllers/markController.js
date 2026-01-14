@@ -1,64 +1,52 @@
 import Student from "../models/Student.js";
 import Test from "../models/Test.js";
 import Mark from "../models/Mark.js";
+import { subjectsByStandard } from "../config/subjectsByStandard.js";
 
 export const saveMarks = async (req, res) => {
-  const { studentId, testId, obtainedMarks, status } = req.body;
+  const { studentId, testId, subject, totalMarks, obtainedMarks, status } =
+    req.body;
 
   if (!studentId || !testId) {
     return res.status(400).json({ message: "Invalid data" });
   }
 
-  //check test exists
-  const test = await Test.findById(testId);
-  if (!test) {
-    return res.status(404).json({ message: "Test not found" });
+  const student = await Student.findById(studentId);
+  if (!student) return res.status(404).json({ message: "Student not found" });
+
+  // ✅ Validate subject for standard
+  if (!subjectsByStandard[student.standard]?.includes(subject)) {
+    return res.status(400).json({ message: "Invalid subject for class" });
   }
 
-  //❌ same student + sbject + date check
-  const alreadyExists = await Mark.findOne({
-    studentId,
-    testId,
-  });
-
-  if (alreadyExists && alreadyExists.testId) {
-    return res.status(400).json({
-      message: "Marks already entered , please edit",
-      markId: alreadyExists._id,
-    });
+  if (!subject || !Number.isFinite(totalMarks)) {
+    return res
+      .status(400)
+      .json({ message: "Subject and totalmarks are required" });
   }
 
-  //absent case
-  if (status === "ABSENT") {
-    const mark = await Mark.create({
-      studentId,
-      testId,
-      status: "ABSENT",
-      obtainedMarks: null,
-      isGuest: req.user.role === "guest",
-    });
-    return res.status(201).json(mark);
-  }
-
-  if (!Number.isFinite(obtainedMarks)) {
+  if (status !== "ABSENT" && !Number.isFinite(obtainedMarks)) {
     return res.status(400).json({ message: "Marks required" });
   }
 
-  //mark > total mark not allowds
-  if (obtainedMarks > test.totalMarks) {
-    return res
-      .status(400)
-      .json({ message: `Marks cannot be greater than ${test.totalMarks}` });
+  if (status !== "ABSENT" && obtainedMarks > totalMarks) {
+    return res.status(400).json({
+      message: `Marks cannot be greater than ${totalMarks}`,
+    });
   }
 
-  const mark = await Mark.create({
-    studentId,
-    testId,
-    obtainedMarks,
-    status: "PRESENT",
-    isGuest: req.user?.role === "guest",
-  });
-  res.status(201).json(mark);
+  const mark = await Mark.findOneAndUpdate(
+    { studentId, testId },
+    {
+      subject,
+      totalMarks,
+      obtainedMarks: status === "ABSENT" ? null : obtainedMarks,
+      status,
+      isGuest: req.user.role === "guest",
+    },
+    { upsert: true, new: true }
+  );
+  return res.status(201).json(mark);
 };
 
 export const getPDFDataByDate = async (req, res) => {
@@ -68,9 +56,14 @@ export const getPDFDataByDate = async (req, res) => {
       return res.status(400).json({ message: "testDate required" });
     }
 
-    //find all tests on this date
+    const start = new Date(testDate);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(testDate);
+    end.setHours(23, 59, 59, 999);
+
     const tests = await Test.find({
-      testDate: new Date(testDate),
+      testDate: { $gte: start, $lte: end },
       isGuest: req.user.role === "guest",
     });
 
@@ -84,7 +77,7 @@ export const getPDFDataByDate = async (req, res) => {
       isGuest: req.user.role === "guest",
     })
       .populate("studentId", "name standard")
-      .populate("testId", "subject totalMarks testDate");
+      .populate("testId", "testDate");
 
     //get all students ( for absent logic)
     const students = await Student.find({
@@ -111,7 +104,6 @@ export const getMarksByDate = async (req, res) => {
       .populate({
         path: "testId",
         match: { testDate: new Date(testDate) },
-        select: "subject totalMarks testDate",
       })
       .populate("studentId", "name standard");
 
@@ -150,10 +142,9 @@ export const updateMark = async (req, res) => {
       return res.status(400).json({ message: "Invalid marks" });
     }
 
-    const test = await Test.findById(mark.testId);
-    if (obtainedMarks > test.totalMarks) {
+    if (obtainedMarks > mark.totalMarks) {
       return res.status(400).json({
-        message: `Marks cannot be greater than ${test.totalMarks}`,
+        message: `Marks cannot be greater than ${mark.totalMarks}`,
       });
     }
 
