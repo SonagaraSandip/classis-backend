@@ -57,14 +57,14 @@ export const generateClassWisePDF = async (req, res) => {
       `;
 
       const classStudents = students.filter(
-        (s) => s.standard === test.standard
+        (s) => s.standard === test.standard,
       );
 
       classStudents.forEach((student) => {
         const mark = marks.find(
           (m) =>
             m.studentId._id.toString() === student._id.toString() &&
-            m.testId.toString() === test._id.toString()
+            m.testId.toString() === test._id.toString(),
         );
 
         const isAbsent = mark?.status === "ABSENT";
@@ -97,12 +97,12 @@ export const generateClassWisePDF = async (req, res) => {
     // 3️⃣ Load HTML template
     const templatePath = path.join(
       __dirname,
-      "../templates/classWiseReport.html"
+      "../templates/classWiseReport.html",
     );
 
     const logoPath = imageToBase64(path.join(__dirname, "../assets/logo.png"));
     const watermarkPath = imageToBase64(
-      path.join(__dirname, "../assets/watermark.png")
+      path.join(__dirname, "../assets/watermark.png"),
     );
 
     let html = fs.readFileSync(templatePath, "utf-8");
@@ -115,8 +115,13 @@ export const generateClassWisePDF = async (req, res) => {
 
     // 4️⃣ Puppeteer PDF
     const browser = await puppeteer.launch({
-      headless: "new",
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined ,
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+      ],
     });
 
     const page = await browser.newPage();
@@ -164,7 +169,7 @@ export const generateClassWisePDF = async (req, res) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `inline; filename="Marks_${testDate}.pdf"; filename*=UTF-8''Marks_${testDate}.pdf`
+      `inline; filename="Marks_${testDate}.pdf"; filename*=UTF-8''Marks_${testDate}.pdf`,
     );
 
     res.send(pdf);
