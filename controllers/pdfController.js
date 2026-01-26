@@ -1,9 +1,11 @@
 import fs from "fs";
 import path from "path";
-import puppeteer from "puppeteer";
+// import puppeteer from "puppeteer-core";
+// import chromium from "@sparticuz/chromium";
 import Test from "../models/Test.js";
 import Mark from "../models/Mark.js";
 import Student from "../models/Student.js";
+import { getBrowser } from "../utils/browser.js";
 import { fileURLToPath } from "url";
 
 const imageToBase64 = (filePath) =>
@@ -11,6 +13,7 @@ const imageToBase64 = (filePath) =>
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
 
 export const generateClassWisePDF = async (req, res) => {
   try {
@@ -114,16 +117,14 @@ export const generateClassWisePDF = async (req, res) => {
       .replace("{{WATERMARK_LOGO}}", watermarkPath);
 
     // 4️⃣ Puppeteer PDF
-    const browser = await puppeteer.launch({
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined ,
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-      ],
-    });
+    // const browser = await puppeteer.launch({
+    //   args: chromium.args,
+    //   defaultViewport: chromium.defaultViewport,
+    //   executablePath: await chromium.executablePath(),
+    //   headless: chromium.headless,
+    // });
 
+    const browser = await getBrowser();
     const page = await browser.newPage();
 
     await page.setContent(html, { waitUntil: "load" });
@@ -163,7 +164,7 @@ export const generateClassWisePDF = async (req, res) => {
       },
     });
 
-    await browser.close();
+    await page.close();
 
     // 5️⃣ Send PDF
     res.setHeader("Content-Type", "application/pdf");

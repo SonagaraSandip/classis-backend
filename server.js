@@ -12,7 +12,7 @@ import pdfRoutes from "./routes/pdfRoutes.js";
 
 dotenv.config();
 
-const app = express(); 
+const app = express();
 
 // 🔥 MIDDLEWARE (ORDER MATTERS)
 app.use(cors());
@@ -32,13 +32,17 @@ if (
   throw new Error("❌ Production cannot use DEV database");
 }
 
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
 
 // DB CONNECT
 mongoose
   .connect(process.env.MONGO_URL)
   .then(() => {
     console.log("✅ MongoDB connected");
-      console.log("📦 Database:", mongoose.connection.name);
+    console.log("📦 Database:", mongoose.connection.name);
     //start cron after db connect
     startGuestCleanupCron();
   })
