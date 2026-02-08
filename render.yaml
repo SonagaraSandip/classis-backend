@@ -2,8 +2,11 @@ services:
   - type: web
     name: classis-backend
     env: node
+    plan: free
     buildCommand: npm install
-    startCommand: npm start
+    startCommand: node server.js
     envVars:
-      - key: PUPPETEER_EXECUTABLE_PATH
-        value: /usr/bin/chromium-browser
+      - key: NODE_ENV
+        value: production
+      - key: RENDER
+        value: true

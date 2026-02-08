@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="gu">
   <head>
     <meta charset="UTF-8" />
@@ -10,8 +10,15 @@
         margin: 5mm 10mm 25mm 10mm;
       }
 
+      @font-face {
+        font-family: "Gujarati";
+        src: url("{{GUJARATI_FONT}}") format("truetype");
+        font-weight: normal;
+        font-style: normal;
+      }
+
       body {
-        font-family: "Nirmala UI", "Shruti", "Mangal", sans-serif;
+        font-family: "Gujarati", sans-serif;
         padding: 20px;
         /* padding-bottom: 30px; */
         position: relative;

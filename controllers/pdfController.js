@@ -8,11 +8,20 @@ import Student from "../models/Student.js";
 import { getBrowser } from "../utils/browser.js";
 import { fileURLToPath } from "url";
 
-const imageToBase64 = (filePath) =>
-  `data:image/png;base64,${fs.readFileSync(filePath).toString("base64")}`;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const fontToBase64 = (filePath) =>
+  `data:font/ttf;base64,${fs.readFileSync(filePath).toString("base64")}`;
+
+const gujaratiFont = fontToBase64(
+  path.join(__dirname, "../assets/fonts/NotoSansGujarati-Regular.ttf")
+);
+
+const imageToBase64 = (filePath) =>
+  `data:image/png;base64,${fs.readFileSync(filePath).toString("base64")}`;
+
 
 
 export const generateClassWisePDF = async (req, res) => {
@@ -110,6 +119,7 @@ export const generateClassWisePDF = async (req, res) => {
 
     let html = fs.readFileSync(templatePath, "utf-8");
     html = html
+    .replace("{{GUJARATI_FONT}}", gujaratiFont)
       .replace("{{CONTENT}}", contentHTML)
       .replace("{{SCHOOL_NAME}}", "જય માતાજી ટ્યુશન ક્લાસીસ")
       .replace("{{TEST_DATE}}", new Date(testDate).toLocaleDateString("gu-IN"))
