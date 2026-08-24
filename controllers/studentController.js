@@ -70,3 +70,72 @@ export const getStudentProfile = async (req, res) => {
     });
   }
 };
+
+export const updateStudent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, standard } = req.body;
+
+    if (!name || !name.trim() || !standard) {
+      return res.status(400).json({ message: "Name and Class Standard are required" });
+    }
+
+    const student = await Student.findOne({
+      _id: id,
+      isGuest: req.user.role === "guest",
+    });
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    student.name = name.trim();
+    student.standard = standard;
+
+    await student.save();
+    res.json(student);
+  } catch (err) {
+    console.error("Update student error:", err);
+    res.status(500).json({
+      message: "Error while updating student",
+      error: err.message,
+    });
+  }
+};
+
+export const deleteStudent = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ message: "Student ID is required" });
+    }
+
+    const student = await Student.findOneAndDelete({
+      _id: id,
+      isGuest: req.user.role === "guest",
+    });
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    // Delete associated marks
+    await Mark.deleteMany({
+      studentId: id,
+      isGuest: req.user.role === "guest",
+    });
+
+    res.json({
+      message: "Student and associated marks deleted successfully",
+      studentId: id,
+    });
+  } catch (err) {
+    console.error("Delete student error:", err);
+    res.status(500).json({
+      message: "Error while deleting student",
+      error: err.message,
+    });
+  }
+};
+
