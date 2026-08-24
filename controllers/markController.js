@@ -100,21 +100,72 @@ export const getMarksByDate = async (req, res) => {
       return res.status(400).json({ message: "TestDate is required" });
     }
 
-    const marks = await Mark.find({ isGuest: req.user.role === "guest" })
-      .populate({
-        path: "testId",
-        match: { testDate: new Date(testDate) },
-      })
+    const start = new Date(testDate);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(testDate);
+    end.setHours(23, 59, 59, 999);
+
+    const tests = await Test.find({
+      testDate: { $gte: start, $lte: end },
+      isGuest: req.user.role === "guest",
+    });
+
+    if (tests.length === 0) return res.json([]);
+
+    const testIds = tests.map((t) => t._id);
+
+    const marks = await Mark.find({
+      testId: { $in: testIds },
+      isGuest: req.user.role === "guest",
+    })
+      .populate("testId", "testDate standard")
       .populate("studentId", "name standard");
 
-    //remove null testId results
-    const filtered = marks.filter((m) => m.testId !== null);
-
-    res.json(filtered);
+    res.json(marks);
   } catch (err) {
     res
       .status(500)
-      .json({ message: "Error while fetching vie date", error: err.message });
+      .json({ message: "Error while fetching by date", error: err.message });
+  }
+};
+
+export const bulkSaveMarks = async (req, res) => {
+  try {
+    const { testId, marks } = req.body;
+
+    if (!testId || !Array.isArray(marks) || marks.length === 0) {
+      return res.status(400).json({ message: "testId and marks array are required" });
+    }
+
+    const isGuest = req.user.role === "guest";
+
+    const operations = marks.map((m) => {
+      const isAbsent = m.status === "ABSENT";
+      const obtained = isAbsent ? null : (Number.isFinite(m.obtainedMarks) ? m.obtainedMarks : null);
+
+      return {
+        updateOne: {
+          filter: { studentId: m.studentId, testId },
+          update: {
+            $set: {
+              subject: m.subject,
+              totalMarks: m.totalMarks,
+              obtainedMarks: obtained,
+              status: isAbsent ? "ABSENT" : "PRESENT",
+              isGuest,
+            },
+          },
+          upsert: true,
+        },
+      };
+    });
+
+    const result = await Mark.bulkWrite(operations);
+    res.json({ message: "Marks saved successfully", result });
+  } catch (err) {
+    console.error("Bulk save marks error:", err);
+    res.status(500).json({ message: "Failed to bulk save marks", error: err.message });
   }
 };
 

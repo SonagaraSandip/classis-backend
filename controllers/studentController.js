@@ -36,31 +36,82 @@ export const getStudentProfile = async (req, res) => {
     }
 
     // 1️⃣ Get student
-    const student = await Student.findById(id);
+    const student = await Student.findOne({
+      _id: id,
+      isGuest: req.user.role === "guest",
+    });
+
     if (!student) {
       return res.status(404).json({ message: "Student not found" });
     }
 
-    // 2️⃣ Get marks history (FIXED SORT)
+    // 2️⃣ Get marks history
     const marks = await Mark.find({
       studentId: id,
       isGuest: req.user.role === "guest",
-    })
-      .populate("testId", "testDate")
-      .sort({ createdAt: -1 });
+    }).populate("testId", "testDate standard");
 
-    //merge mark + absent
-    const history = marks.map((m) => ({
+    // 3️⃣ Sort history chronologically by test date descending
+    const sortedMarks = marks.sort((a, b) => {
+      const dateA = a.testId?.testDate ? new Date(a.testId.testDate).getTime() : 0;
+      const dateB = b.testId?.testDate ? new Date(b.testId.testDate).getTime() : 0;
+      return dateB - dateA;
+    });
+
+    const history = sortedMarks.map((m) => ({
+      markId: m._id,
       testDate: m.testId?.testDate,
+      standard: m.testId?.standard || student.standard,
       subject: m.subject,
       totalMarks: m.totalMarks,
       obtainedMarks: m.obtainedMarks,
       status: m.status,
+      percentage:
+        m.status === "PRESENT" && m.totalMarks > 0 && Number.isFinite(m.obtainedMarks)
+          ? Math.round((m.obtainedMarks / m.totalMarks) * 100)
+          : null,
     }));
+
+    // 4️⃣ Calculate stats
+    const totalTests = history.length;
+    const presentCount = history.filter((r) => r.status === "PRESENT").length;
+    const absentCount = totalTests - presentCount;
+    const attendancePercentage = totalTests > 0 ? Math.round((presentCount / totalTests) * 100) : 0;
+
+    let totalPossible = 0;
+    let totalObtained = 0;
+    const subjectMap = {};
+
+    history.forEach((row) => {
+      if (row.status === "PRESENT" && Number.isFinite(row.obtainedMarks)) {
+        totalPossible += row.totalMarks || 0;
+        totalObtained += row.obtainedMarks || 0;
+
+        if (!subjectMap[row.subject]) {
+          subjectMap[row.subject] = { total: 0, obtained: 0, count: 0 };
+        }
+        subjectMap[row.subject].total += row.totalMarks || 0;
+        subjectMap[row.subject].obtained += row.obtainedMarks || 0;
+        subjectMap[row.subject].count += 1;
+      }
+    });
+
+    const overallPercentage = totalPossible > 0 ? Math.round((totalObtained / totalPossible) * 100) : null;
+
+    const stats = {
+      totalTests,
+      presentCount,
+      absentCount,
+      attendancePercentage,
+      totalPossible,
+      totalObtained,
+      overallPercentage,
+    };
 
     res.json({
       student,
       history,
+      stats,
     });
   } catch (err) {
     console.error("Student profile error:", err);

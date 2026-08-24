@@ -38,5 +38,7 @@ const markSchema = new mongoose.Schema(
 );
 
 markSchema.index({ studentId: 1, testId: 1 }, { unique: true });
+markSchema.index({ testId: 1, isGuest: 1 });
+markSchema.index({ studentId: 1, isGuest: 1 });
 
 export default mongoose.model("Mark", markSchema);

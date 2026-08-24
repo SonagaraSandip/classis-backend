@@ -14,4 +14,7 @@ const testSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+testSchema.index({ testDate: 1, isGuest: 1 });
+testSchema.index({ standard: 1, testDate: 1, isGuest: 1 });
+
 export default mongoose.model("Test", testSchema);

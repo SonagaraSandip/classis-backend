@@ -12,4 +12,6 @@ const studentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+studentSchema.index({ standard: 1, isGuest: 1, name: 1 });
+
 export default mongoose.model("Student", studentSchema);
