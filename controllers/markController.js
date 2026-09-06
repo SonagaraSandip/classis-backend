@@ -14,11 +14,6 @@ export const saveMarks = async (req, res) => {
   const student = await Student.findById(studentId);
   if (!student) return res.status(404).json({ message: "Student not found" });
 
-  // ✅ Validate subject for standard
-  if (!subjectsByStandard[student.standard]?.includes(subject)) {
-    return res.status(400).json({ message: "Invalid subject for class" });
-  }
-
   if (!subject || !Number.isFinite(totalMarks)) {
     return res
       .status(400)

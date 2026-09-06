@@ -9,6 +9,8 @@ import testRoutes from "./routes/testRoutes.js";
 import markRoutes from "./routes/markRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import pdfRoutes from "./routes/pdfRoutes.js";
+import standardRoutes from "./routes/standardRoutes.js";
+import { seedDefaultsIfNeeded } from "./controllers/standardController.js";
 
 dotenv.config();
 
@@ -24,6 +26,7 @@ app.use("/api/tests", testRoutes);
 app.use("/api/marks", markRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/pdf", pdfRoutes);
+app.use("/api/standards", standardRoutes);
 
 if (
   process.env.NODE_ENV === "production" &&
@@ -43,6 +46,8 @@ mongoose
   .then(() => {
     console.log("✅ MongoDB connected");
     console.log("📦 Database:", mongoose.connection.name);
+    // seed default standards & subjects
+    seedDefaultsIfNeeded();
     //start cron after db connect
     startGuestCleanupCron();
   })
