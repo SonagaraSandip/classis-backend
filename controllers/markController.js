@@ -1,7 +1,9 @@
 import Student from "../models/Student.js";
 import Test from "../models/Test.js";
 import Mark from "../models/Mark.js";
+import Standard from "../models/Standard.js";
 import { subjectsByStandard } from "../config/subjectsByStandard.js";
+import { compareStandards } from "./pdfController.js";
 
 export const saveMarks = async (req, res) => {
   const { studentId, testId, subject, totalMarks, obtainedMarks, status } =
@@ -57,12 +59,24 @@ export const getPDFDataByDate = async (req, res) => {
     const end = new Date(testDate);
     end.setHours(23, 59, 59, 999);
 
-    const tests = await Test.find({
-      testDate: { $gte: start, $lte: end },
-      isGuest: req.user.role === "guest",
+    const [testsRaw, dbStandards] = await Promise.all([
+      Test.find({
+        testDate: { $gte: start, $lte: end },
+        isGuest: req.user.role === "guest",
+      }),
+      Standard.find().sort({ order: 1, createdAt: 1 }),
+    ]);
+
+    if (testsRaw.length === 0) return res.json([]);
+
+    const standardOrderMap = {};
+    dbStandards.forEach((s, idx) => {
+      standardOrderMap[s.name] = s.order !== undefined ? s.order : idx;
     });
 
-    if (tests.length === 0) return res.json([]);
+    const tests = testsRaw.sort((t1, t2) =>
+      compareStandards(t1.standard, t2.standard, standardOrderMap)
+    );
 
     const testIds = tests.map((t) => t._id);
 

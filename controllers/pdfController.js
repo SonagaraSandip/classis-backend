@@ -3,11 +3,43 @@ import path from "path";
 import Test from "../models/Test.js";
 import Mark from "../models/Mark.js";
 import Student from "../models/Student.js";
+import Standard from "../models/Standard.js";
 import { getBrowser } from "../utils/browser.js";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Helper to compare and sort standards: "બાલ મંદિર" first, then Std 1, 2, 3, ..., 10
+export const compareStandards = (stdA = "", stdB = "", standardOrderMap = {}) => {
+  const a = String(stdA).trim();
+  const b = String(stdB).trim();
+
+  // 1. If explicit order exists from database Standard collection
+  if (standardOrderMap[a] !== undefined && standardOrderMap[b] !== undefined) {
+    return standardOrderMap[a] - standardOrderMap[b];
+  }
+
+  // 2. Bal Mandir / KG should always come first
+  const isBalA = /બાલ|bal|kg|nursery/i.test(a);
+  const isBalB = /બાલ|bal|kg|nursery/i.test(b);
+  if (isBalA && !isBalB) return -1;
+  if (!isBalA && isBalB) return 1;
+
+  // 3. Extract numbers from standards (e.g. "ધોરણ 1" -> 1, "ધોરણ 10" -> 10)
+  const numA = parseInt(a.replace(/\D/g, ""), 10);
+  const numB = parseInt(b.replace(/\D/g, ""), 10);
+
+  if (!isNaN(numA) && !isNaN(numB)) {
+    if (numA !== numB) return numA - numB;
+  } else if (!isNaN(numA)) {
+    return -1;
+  } else if (!isNaN(numB)) {
+    return 1;
+  }
+
+  return a.localeCompare(b, "gu-IN", { numeric: true });
+};
 
 // Helper to convert file to base64
 const fileToBase64 = (filePath, mimeType) => {
@@ -63,14 +95,27 @@ export const generateClassWisePDF = async (req, res) => {
     const end = new Date(testDate);
     end.setHours(23, 59, 59, 999);
 
-    const tests = await Test.find({
-      testDate: { $gte: start, $lte: end },
-      isGuest: req.user.role === "guest",
-    }).sort({ standard: 1 });
+    const [testsRaw, dbStandards] = await Promise.all([
+      Test.find({
+        testDate: { $gte: start, $lte: end },
+        isGuest: req.user.role === "guest",
+      }),
+      Standard.find().sort({ order: 1, createdAt: 1 }),
+    ]);
 
-    if (!tests.length) {
+    if (!testsRaw.length) {
       return res.status(400).json({ message: "No tests found for this date" });
     }
+
+    const standardOrderMap = {};
+    dbStandards.forEach((s, idx) => {
+      standardOrderMap[s.name] = s.order !== undefined ? s.order : idx;
+    });
+
+    // 🎯 Sort tests standard-wise: Bal Mandir -> Std 1 -> Std 2 ... -> Std 10
+    const tests = testsRaw.sort((t1, t2) =>
+      compareStandards(t1.standard, t2.standard, standardOrderMap)
+    );
 
     const testIds = tests.map((t) => t._id);
 
@@ -86,24 +131,13 @@ export const generateClassWisePDF = async (req, res) => {
     let contentHTML = "";
 
     tests.forEach((test) => {
-      contentHTML += `<h2>${test.standard}</h2>`;
-      contentHTML += `
-        <table>
-          <thead>
-            <tr>
-              <th>વિદ્યાર્થી નું નામ</th>
-              <th>વિષય</th>
-              <th>માર્ક્સ</th>
-            </tr>
-          </thead>
-          <tbody>
-      `;
-
       const classStudents = students.filter(
         (s) => s.standard === test.standard
       );
 
-      classStudents.forEach((student) => {
+      let tableRowsHTML = "";
+
+      classStudents.forEach((student, index) => {
         const mark = marks.find(
           (m) =>
             m.studentId?._id?.toString() === student._id.toString() &&
@@ -111,42 +145,80 @@ export const generateClassWisePDF = async (req, res) => {
         );
 
         const isAbsent = mark?.status === "ABSENT";
-
         const marksText = mark
-          ? mark.status === "ABSENT"
-            ? "ABSENT"
-            : `${mark.obtainedMarks} / ${mark.totalMarks}`
-          : "-";
+          ? isAbsent
+            ? `<span class="absent-text">ગેરહાજર</span>`
+            : `<span class="marks-val">${mark.obtainedMarks} / ${mark.totalMarks}</span>`
+          : "—";
 
-        contentHTML += `
+        const subjectText = mark?.subject || "-";
+
+        tableRowsHTML += `
           <tr class="${isAbsent ? "absent-row" : ""}">
-            <td>${student.name}</td>
-            <td>${mark?.subject || "-"}</td>
-            <td class="${isAbsent ? "absent-text" : ""}">
+            <td class="center" style="width: 45px;">
+              <span class="roll-badge">${index + 1}</span>
+            </td>
+            <td>
+              <span class="student-name">${student.name}</span>
+            </td>
+            <td>
+              <span class="subject-badge">${subjectText}</span>
+            </td>
+            <td class="center">
               ${marksText}
             </td>
           </tr>
         `;
       });
 
-      contentHTML += `</tbody></table>`;
+      contentHTML += `
+        <div class="class-section">
+          <div class="class-header">
+            <div class="class-title">
+              <span>📌</span>
+              <span>${test.standard}</span>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th class="center" style="width: 45px;">ક્રમ</th>
+                <th>વિદ્યાર્થી નું નામ</th>
+                <th>વિષય</th>
+                <th class="center">માર્ક્સ</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${
+                tableRowsHTML ||
+                `<tr><td colspan="4" class="center" style="padding: 12px; color: #94a3b8;">આ ધોરણ માટે કોઈ વિદ્યાર્થી મળ્યા નથી</td></tr>`
+              }
+            </tbody>
+          </table>
+        </div>
+      `;
     });
 
-    // Populate template from cached string
-    let html = cachedTemplate || "";
-    if (!html) {
-      const templatePath = path.join(
-        __dirname,
-        "../templates/classWiseReport.html"
-      );
-      html = fs.readFileSync(templatePath, "utf-8");
-    }
+    // Always read latest template from disk
+    const templatePath = path.join(
+      __dirname,
+      "../templates/classWiseReport.html"
+    );
+    let html = fs.existsSync(templatePath)
+      ? fs.readFileSync(templatePath, "utf-8")
+      : cachedTemplate;
+
+    const formattedTestDate = new Date(testDate).toLocaleDateString("gu-IN", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
 
     html = html
       .replace("{{GUJARATI_FONT}}", gujaratiFont)
       .replace("{{CONTENT}}", contentHTML)
       .replace("{{SCHOOL_NAME}}", "જય માતાજી ટ્યુશન ક્લાસીસ")
-      .replace("{{TEST_DATE}}", new Date(testDate).toLocaleDateString("gu-IN"))
+      .replace("{{TEST_DATE}}", `${formattedTestDate}`)
       .replace("{{SCHOOL_LOGO}}", logoPath)
       .replace("{{WATERMARK_LOGO}}", watermarkPath);
 
@@ -164,24 +236,27 @@ export const generateClassWisePDF = async (req, res) => {
       footerTemplate: `
         <div style="
           width:100%;
-          font-size:12px;
-          color:#444;
-          padding: 0 20px;
+          font-size:10px;
+          color:#64748b;
+          padding: 0 10mm;
           display:flex;
           justify-content:space-between;
           align-items:center;
+          font-family: sans-serif;
+          border-top: 1px solid #e2e8f0;
+          padding-top: 4px;
         ">
-          <div>જય માતાજી ટ્યુશન ક્લાસીસ</div>
+          <div>જય માતાજી ટ્યુશન ક્લાસીસ • શૈક્ષણિક મૂલ્યાંકન અહેવાલ</div>
           <div>
             Page <span class="pageNumber"></span> / <span class="totalPages"></span>
           </div>
         </div>
       `,
       margin: {
-        top: "20mm",
-        bottom: "30mm",
-        left: "15mm",
-        right: "15mm",
+        top: "14mm",
+        bottom: "16mm",
+        left: "10mm",
+        right: "10mm",
       },
     });
 
