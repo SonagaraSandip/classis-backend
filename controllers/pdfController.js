@@ -240,13 +240,10 @@ export const generateClassWisePDF = async (req, res) => {
           color:#64748b;
           padding: 0 10mm;
           display:flex;
-          justify-content:space-between;
+          justify-content:flex-end;
           align-items:center;
-          font-family: sans-serif;
-          border-top: 1px solid #e2e8f0;
-          padding-top: 4px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         ">
-          <div>જય માતાજી ટ્યુશન ક્લાસીસ • શૈક્ષણિક મૂલ્યાંકન અહેવાલ</div>
           <div>
             Page <span class="pageNumber"></span> / <span class="totalPages"></span>
           </div>
