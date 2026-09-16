@@ -22,7 +22,6 @@ const standardSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-standardSchema.index({ name: 1 });
 standardSchema.index({ order: 1 });
 
 export default mongoose.model("Standard", standardSchema);

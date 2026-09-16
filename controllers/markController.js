@@ -63,8 +63,8 @@ export const getPDFDataByDate = async (req, res) => {
       Test.find({
         testDate: { $gte: start, $lte: end },
         isGuest: req.user.role === "guest",
-      }),
-      Standard.find().sort({ order: 1, createdAt: 1 }),
+      }).lean(),
+      Standard.find().sort({ order: 1, createdAt: 1 }).lean(),
     ]);
 
     if (testsRaw.length === 0) return res.json([]);
@@ -86,12 +86,13 @@ export const getPDFDataByDate = async (req, res) => {
       isGuest: req.user.role === "guest",
     })
       .populate("studentId", "name standard")
-      .populate("testId", "testDate");
+      .populate("testId", "testDate")
+      .lean();
 
     //get all students ( for absent logic)
     const students = await Student.find({
       isGuest: req.user.role === "guest",
-    });
+    }).lean();
 
     res.json({ tests, marks, students });
   } catch (err) {
@@ -118,7 +119,7 @@ export const getMarksByDate = async (req, res) => {
     const tests = await Test.find({
       testDate: { $gte: start, $lte: end },
       isGuest: req.user.role === "guest",
-    });
+    }).lean();
 
     if (tests.length === 0) return res.json([]);
 
@@ -129,7 +130,8 @@ export const getMarksByDate = async (req, res) => {
       isGuest: req.user.role === "guest",
     })
       .populate("testId", "testDate standard")
-      .populate("studentId", "name standard");
+      .populate("studentId", "name standard")
+      .lean();
 
     res.json(marks);
   } catch (err) {

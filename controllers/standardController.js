@@ -37,7 +37,7 @@ const findStandardByIdOrName = async (id, standardName) => {
 export const getStandards = async (req, res) => {
   try {
     await seedDefaultsIfNeeded();
-    const standards = await Standard.find().sort({ order: 1, createdAt: 1 });
+    const standards = await Standard.find().sort({ order: 1, createdAt: 1 }).lean();
     res.json(standards);
   } catch (err) {
     console.error("Error fetching standards:", err);

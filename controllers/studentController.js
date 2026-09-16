@@ -23,7 +23,7 @@ export const getStudents = async (req, res) => {
 
   if (standard) filter.standard = standard;
 
-  const students = await Student.find(filter).sort({ name: 1 });
+  const students = await Student.find(filter).sort({ name: 1 }).lean();
   res.json(students);
 };
 
@@ -39,7 +39,7 @@ export const getStudentProfile = async (req, res) => {
     const student = await Student.findOne({
       _id: id,
       isGuest: req.user.role === "guest",
-    });
+    }).lean();
 
     if (!student) {
       return res.status(404).json({ message: "Student not found" });
@@ -49,7 +49,9 @@ export const getStudentProfile = async (req, res) => {
     const marks = await Mark.find({
       studentId: id,
       isGuest: req.user.role === "guest",
-    }).populate("testId", "testDate standard");
+    })
+      .populate("testId", "testDate standard")
+      .lean();
 
     // 3️⃣ Sort history chronologically by test date descending
     const sortedMarks = marks.sort((a, b) => {

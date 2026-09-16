@@ -49,10 +49,12 @@ export const getRecentTestHistory = async (req, res) => {
     const limit = parseInt(req.query.limit) || 3;
 
     // Fetch tests sorted by testDate descending
-    const tests = await Test.find({ isGuest }).sort({
-      testDate: -1,
-      createdAt: -1,
-    });
+    const tests = await Test.find({ isGuest })
+      .sort({
+        testDate: -1,
+        createdAt: -1,
+      })
+      .lean();
 
     if (!tests || tests.length === 0) {
       return res.json([]);
@@ -97,7 +99,9 @@ export const getRecentTestHistory = async (req, res) => {
     const marks = await Mark.find({
       testId: { $in: allRecentTestIds },
       isGuest,
-    }).populate("studentId", "name standard");
+    })
+      .populate("studentId", "name standard")
+      .lean();
 
     // Compute stats for each date
     const history = recentDates.map((group) => {
